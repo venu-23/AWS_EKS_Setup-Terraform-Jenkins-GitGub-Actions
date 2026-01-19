@@ -40,8 +40,7 @@ resource "aws_eks_addon" "eks-addons" {
   addon_version = each.value.version
 
   depends_on = [
-    aws_eks_node_group.ondemand-node,
-    aws_eks_node_group.spot-node
+    aws_eks_fargate_profile.fargate
   ]
 }
 
@@ -61,6 +60,9 @@ resource "aws_eks_fargate_profile" "fargate" {
 
   selector {
     namespace = "default"
+  }
+  selector {
+    namespace = "kube-system"
   }
 
   depends_on = [aws_eks_cluster.eks]
