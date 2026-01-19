@@ -45,6 +45,28 @@ resource "aws_eks_addon" "eks-addons" {
   ]
 }
 
+# Fargate Profile
+resource "aws_eks_fargate_profile" "fargate" {
+  count                = var.is-eks-cluster-enabled ? 1 : 0
+  cluster_name         = aws_eks_cluster.eks[0].name
+  fargate_profile_name = "${var.cluster-name}-fargate"
+
+  pod_execution_role_arn = aws_iam_role.eks_fargate_pod_execution_role.arn
+
+  subnet_ids = [
+    aws_subnet.private-subnet[0].id,
+    aws_subnet.private-subnet[1].id,
+    aws_subnet.private-subnet[2].id
+  ]
+
+  selector {
+    namespace = "default"
+  }
+
+  depends_on = [aws_eks_cluster.eks]
+}
+
+/*
 # NodeGroups
 resource "aws_eks_node_group" "ondemand-node" {
   cluster_name    = aws_eks_cluster.eks[0].name
@@ -115,3 +137,4 @@ resource "aws_eks_node_group" "spot-node" {
 
   depends_on = [aws_eks_cluster.eks]
 }
+*/
