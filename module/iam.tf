@@ -95,3 +95,29 @@ resource "aws_iam_role_policy_attachment" "eks-oidc-policy-attach" {
   role       = aws_iam_role.eks_oidc.name
   policy_arn = aws_iam_policy.eks-oidc-policy.arn
 }
+
+# --------------------------------------------------
+# EKS Fargate Pod Execution Role
+# --------------------------------------------------
+resource "aws_iam_role" "eks_fargate_pod_execution_role" {
+  name = "${var.cluster-name}-fargate-pod-exec-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "eks-fargate-pods.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+# Attach required AWS-managed policy
+resource "aws_iam_role_policy_attachment" "eks_fargate_pod_execution_role_policy" {
+  role       = aws_iam_role.eks_fargate_pod_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy"
+}
