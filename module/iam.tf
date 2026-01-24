@@ -7,6 +7,9 @@ resource "random_integer" "random_suffix" {
   max = 9999
 }
 
+# --------------------------------------------------
+# EKS CLUSTER ROLE (REQUIRED)
+# --------------------------------------------------
 resource "aws_iam_role" "eks-cluster-role" {
   count = var.is_eks_role_enabled ? 1 : 0
   name  = "${local.cluster_name}-role-${random_integer.random_suffix.result}"
@@ -29,6 +32,10 @@ resource "aws_iam_role_policy_attachment" "AmazonEKSClusterPolicy" {
   role       = aws_iam_role.eks-cluster-role[count.index].name
 }
 
+# --------------------------------------------------
+# NODE GROUP ROLE (NOT REQUIRED FOR FARGATE)
+# --------------------------------------------------
+/*
 resource "aws_iam_role" "eks-nodegroup-role" {
   count = var.is_eks_nodegroup_role_enabled ? 1 : 0
   name  = "${local.cluster_name}-nodegroup-role-${random_integer.random_suffix.result}"
@@ -56,6 +63,7 @@ resource "aws_iam_role_policy_attachment" "eks-AmazonEKS_CNI_Policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
   role       = aws_iam_role.eks-nodegroup-role[count.index].name
 }
+
 resource "aws_iam_role_policy_attachment" "eks-AmazonEC2ContainerRegistryReadOnly" {
   count      = var.is_eks_nodegroup_role_enabled ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
@@ -67,8 +75,12 @@ resource "aws_iam_role_policy_attachment" "eks-AmazonEBSCSIDriverPolicy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
   role       = aws_iam_role.eks-nodegroup-role[count.index].name
 }
+*/
 
-# OIDC
+# --------------------------------------------------
+# OIDC / IRSA (OPTIONAL – KEEP COMMENTED FOR MERN)
+# --------------------------------------------------
+/*
 resource "aws_iam_role" "eks_oidc" {
   assume_role_policy = data.aws_iam_policy_document.eks_oidc_assume_role_policy.json
   name               = "eks-oidc"
@@ -81,8 +93,7 @@ resource "aws_iam_policy" "eks-oidc-policy" {
     Statement = [{
       Action = [
         "s3:ListAllMyBuckets",
-        "s3:GetBucketLocation",
-        "*"
+        "s3:GetBucketLocation"
       ]
       Effect   = "Allow"
       Resource = "*"
@@ -95,29 +106,36 @@ resource "aws_iam_role_policy_attachment" "eks-oidc-policy-attach" {
   role       = aws_iam_role.eks_oidc.name
   policy_arn = aws_iam_policy.eks-oidc-policy.arn
 }
+*/
 
 # --------------------------------------------------
-# EKS Fargate Pod Execution Role
+# EKS FARGATE POD EXECUTION ROLE (REQUIRED)
 # --------------------------------------------------
 resource "aws_iam_role" "eks_fargate_pod_execution_role" {
   name = "${var.cluster-name}-fargate-pod-exec-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "eks-fargate-pods.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "eks-fargate-pods.amazonaws.com"
       }
-    ]
+      Action = "sts:AssumeRole"
+    }]
   })
 }
 
-# Attach required AWS-managed policy
+# This policy ALREADY includes ECR pull permissions
 resource "aws_iam_role_policy_attachment" "eks_fargate_pod_execution_role_policy" {
   role       = aws_iam_role.eks_fargate_pod_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy"
 }
+
+# OPTIONAL: Explicit ECR read-only (not required, but safe)
+/*
+resource "aws_iam_role_policy_attachment" "fargate-ecr-readonly" {
+  role       = aws_iam_role.eks_fargate_pod_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+*/
