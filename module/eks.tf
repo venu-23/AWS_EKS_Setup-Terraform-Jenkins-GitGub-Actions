@@ -96,6 +96,9 @@ resource "aws_eks_fargate_profile" "fargate" {
   selector {
     namespace = "kube-system"
   }
+  selector {
+    namespace = "argocd"
+  }
 
   depends_on = [aws_eks_cluster.eks]
 }
